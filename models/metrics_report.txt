@@ -1,0 +1,21 @@
+======================================================================
+AI HEALTHCARE TRIAGE ASSISTANT - MODEL METRICS REPORT
+Generated: 2026-03-06 23:19:13
+======================================================================
+
+Model Type: RandomForestClassifier
+Test Samples: 42
+Correct Predictions: 41
+Misclassifications: 1
+
+ACCURACY: 97.62%
+
+WEIGHTED METRICS:
+  Precision: 98.81%
+  Recall:    97.62%
+  F1-Score:  97.62%
+
+MACRO METRICS:
+  Precision: 98.78%
+  Recall:    98.78%
+  F1-Score:  98.37%
