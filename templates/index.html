@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Healthcare Triage Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏥 AI Healthcare Triage Assistant</h1>
+            <p>Intelligent symptom analysis and specialist recommendation system</p>
+        </header>
+
+        <div class="main-card">
+            <!-- Symptom Selector -->
+            <div class="symptom-section">
+                <h3>📋 Select Your Symptoms</h3>
+                <div class="selector-group">
+                    <select id="symptomSelect" class="symptom-dropdown">
+                        <option value="">Choose a symptom...</option>
+                        {% for symptom in symptoms %}
+                        <option value="{{ symptom }}">{{ symptom.replace('_', ' ') | title }}</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="addSymptom()" class="btn-add">
+                        <span class="btn-icon">➕</span> Add
+                    </button>
+                </div>
+                
+                <!-- Quick filters -->
+                <div class="quick-filters">
+                    <span class="filter-label">Common symptoms:</span>
+                    <button onclick="addCommonSymptom('headache')" class="filter-chip">Headache</button>
+                    <button onclick="addCommonSymptom('fatigue')" class="filter-chip">Fatigue</button>
+                    <button onclick="addCommonSymptom('cough')" class="filter-chip">Cough</button>
+                    <button onclick="addCommonSymptom('fever')" class="filter-chip">Fever</button>
+                    <button onclick="addCommonSymptom('nausea')" class="filter-chip">Nausea</button>
+                </div>
+            </div>
+
+            <!-- Selected Symptoms -->
+            <div class="selected-section">
+                <div class="section-header">
+                    <h4>Selected Symptoms</h4>
+                    <span id="symptomCount" class="badge">0</span>
+                </div>
+                <div id="symptomsList" class="symptoms-list"></div>
+                <div id="noSymptoms" class="empty-state">
+                    <p>No symptoms selected yet. Choose from the dropdown above.</p>
+                </div>
+            </div>
+
+            <!-- Analyze Button -->
+            <button onclick="analyzeSymptoms()" class="btn-analyze" id="analyzeBtn">
+                <span class="btn-icon">🔍</span> Analyze Symptoms
+            </button>
+
+            <!-- Loading -->
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Analyzing your symptoms...</p>
+                <p class="loading-subtitle">This may take a few seconds</p>
+            </div>
+
+            <!-- Results -->
+            <div id="results" class="results" style="display: none;">
+                <h3>📊 Analysis Results</h3>
+                
+                <!-- Primary Result -->
+                <div id="primaryResult" class="primary-result"></div>
+                
+                <!-- Alternatives -->
+                <div id="alternativesSection" style="display: none;">
+                    <h4>Alternative Possibilities</h4>
+                    <div id="alternatives" class="alternatives-list"></div>
+                </div>
+                
+                <!-- Feedback Section -->
+                <div class="feedback-section" id="feedbackSection" style="display: none;">
+                    <h4>Was this helpful?</h4>
+                    <div class="feedback-buttons">
+                        <button onclick="submitFeedback(true)" class="feedback-btn yes">👍 Yes</button>
+                        <button onclick="submitFeedback(false)" class="feedback-btn no">👎 No</button>
+                    </div>
+                </div>
+                
+                <!-- Disclaimer -->
+                <div class="disclaimer">
+                    <strong>⚠️ Medical Disclaimer</strong>
+                    <p>This is an AI-powered preliminary assessment for educational purposes only. 
+                    Always consult a qualified healthcare professional for accurate diagnosis and treatment.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedSymptoms = [];
+        let lastPrediction = null;
+
+        function addSymptom() {
+            const select = document.getElementById('symptomSelect');
+            const symptom = select.value;
+            
+            if (!symptom) {
+                showNotification('Please select a symptom', 'warning');
+                return;
+            }
+            
+            if (!selectedSymptoms.includes(symptom)) {
+                selectedSymptoms.push(symptom);
+                updateSymptomsList();
+                select.value = '';
+            } else {
+                showNotification('Symptom already selected', 'info');
+            }
+        }
+
+        function addCommonSymptom(symptom) {
+            if (!selectedSymptoms.includes(symptom)) {
+                selectedSymptoms.push(symptom);
+                updateSymptomsList();
+            }
+        }
+
+        function removeSymptom(symptom) {
+            selectedSymptoms = selectedSymptoms.filter(s => s !== symptom);
+            updateSymptomsList();
+        }
+
+        function clearAllSymptoms() {
+            if (selectedSymptoms.length > 0) {
+                if (confirm('Clear all selected symptoms?')) {
+                    selectedSymptoms = [];
+                    updateSymptomsList();
+                }
+            }
+        }
+
+        function updateSymptomsList() {
+            const list = document.getElementById('symptomsList');
+            const noSymptoms = document.getElementById('noSymptoms');
+            const symptomCount = document.getElementById('symptomCount');
+            
+            symptomCount.textContent = selectedSymptoms.length;
+            
+            if (selectedSymptoms.length > 0) {
+                noSymptoms.style.display = 'none';
+                
+                // Group symptoms by first letter for better display
+                const sortedSymptoms = [...selectedSymptoms].sort();
+                
+                list.innerHTML = sortedSymptoms.map(symptom => `
+                    <span class="symptom-tag">
+                        <span class="symptom-name">${symptom.replace(/_/g, ' ')}</span>
+                        <button onclick="removeSymptom('${symptom}')" class="remove-btn" title="Remove">×</button>
+                    </span>
+                `).join('');
+                
+                // Add clear all button if more than 3 symptoms
+                if (selectedSymptoms.length > 3) {
+                    list.innerHTML += `
+                        <button onclick="clearAllSymptoms()" class="clear-all-btn">
+                            Clear All
+                        </button>
+                    `;
+                }
+            } else {
+                noSymptoms.style.display = 'block';
+                list.innerHTML = '';
+            }
+        }
+
+        async function analyzeSymptoms() {
+            if (selectedSymptoms.length === 0) {
+                showNotification('Please select at least one symptom', 'error');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ symptoms: selectedSymptoms })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResults(data);
+                    lastPrediction = data;
+                } else {
+                    showNotification('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Network error. Please try again.', 'error');
+                console.error(error);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const primary = data.primary;
+            const alternatives = data.alternatives;
+
+            // Severity colors
+            const severityColors = {
+                'Low': '#4caf50',
+                'Medium': '#ff9800',
+                'High': '#f44336',
+                'Critical': '#9c27b0',
+                'Unknown': '#757575'
+            };
+
+            // Primary result
+            document.getElementById('primaryResult').innerHTML = `
+                <div class="primary-card">
+                    <div class="disease-header">
+                        <div>
+                            <span class="disease-name">${primary.disease}</span>
+                            <span class="confidence-badge">${primary.confidence}% confidence</span>
+                        </div>
+                        <span class="severity-badge" style="background: ${severityColors[primary.severity]}">
+                            ${primary.severity}
+                        </span>
+                    </div>
+                    
+                    <div class="confidence-section">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${primary.confidence}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="doctor-info">
+                        <div class="info-row">
+                            <span class="info-label">👨‍⚕️ Specialist:</span>
+                            <span class="info-value">${primary.specialist}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏥 Department:</span>
+                            <span class="info-value">${primary.department || 'General Medicine'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📊 Symptoms analyzed:</span>
+                            <span class="info-value">${data.symptoms_count}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="urgency-box" style="border-left-color: ${severityColors[primary.severity]}">
+                        <strong>Urgency Level:</strong> 
+                        ${primary.severity === 'Critical' ? '🚨 EMERGENCY - Seek immediate care' :
+                          primary.severity === 'High' ? '⚠️ URGENT - See doctor within 24 hours' :
+                          primary.severity === 'Medium' ? '📅 Schedule appointment within 2-3 days' :
+                          '✅ Routine - Can wait 1-2 weeks'}
+                    </div>
+                </div>
+            `;
+
+            // Alternatives
+            if (alternatives && alternatives.length > 0) {
+                document.getElementById('alternativesSection').style.display = 'block';
+                document.getElementById('alternatives').innerHTML = alternatives.map(alt => `
+                    <div class="alternative-item" onclick="selectAlternative('${alt.disease}')">
+                        <div class="alt-info">
+                            <span class="alt-disease">${alt.disease}</span>
+                            <span class="alt-specialist">${alt.specialist}</span>
+                        </div>
+                        <div class="alt-confidence">
+                            <span class="confidence-value">${alt.confidence}%</span>
+                            <span class="severity-dot" style="background: ${severityColors[alt.severity]}"></span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('alternativesSection').style.display = 'none';
+            }
+
+            // Show feedback section
+            document.getElementById('feedbackSection').style.display = 'block';
+
+            document.getElementById('results').style.display = 'block';
+            
+            // Scroll to results
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function selectAlternative(disease) {
+            showNotification(`Selected: ${disease}`, 'info');
+            // You can add additional functionality here
+        }
+
+        function submitFeedback(helpful) {
+            const feedback = {
+                predicted_disease: lastPrediction?.primary?.disease,
+                was_correct: helpful,
+                symptoms: selectedSymptoms,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Send feedback to server
+            fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(feedback)
+            }).then(() => {
+                showNotification('Thank you for your feedback!', 'success');
+                document.getElementById('feedbackSection').style.display = 'none';
+            }).catch(() => {
+                showNotification('Thank you for your feedback!', 'success');
+            });
+        }
+
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 3000);
+        }
+
+        // Add keyboard shortcut for adding symptom (Enter key)
+        document.getElementById('symptomSelect').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addSymptom();
+            }
+        });
+    </script>
+</body>
+</html>
