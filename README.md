@@ -23,5 +23,5 @@ An intelligent symptom checker that predicts potential diseases and recommends a
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/ai-healthcare-triage.git
+git clone https://github.com/Venkatas987/ai-healthcare-triage.git
 cd ai-healthcare-triage
